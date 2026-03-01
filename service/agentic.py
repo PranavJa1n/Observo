@@ -1,14 +1,17 @@
 """
 Agentic AI Service for Server Log Analysis
-This service uses Google Gemini API to analyze server logs and identify root causes of errors.
+This service uses LangGraph and LangChain with Google Gemini to analyze server logs and identify root causes of errors.
 """
 
 import os
 import json
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TypedDict
 from datetime import datetime
-import google.generativeai as genai
 from dataclasses import dataclass
+
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import PromptTemplate
+from langgraph.graph import StateGraph, END
 
 
 @dataclass
@@ -22,10 +25,19 @@ class LogAnalysisResult:
     raw_analysis: str
 
 
+class AgentState(TypedDict):
+    """State for the LangGraph agent"""
+    logs: str
+    context: Optional[str]
+    analysis: Optional[Dict[str, Any]]
+    result: Optional[LogAnalysisResult]
+    error: Optional[str]
+
+
 class LogAnalysisAgent:
     """
     Agentic AI for analyzing server and backend logs to identify root causes of issues.
-    Uses Google Gemini API for intelligent analysis.
+    Uses LangGraph and LangChain with Google Gemini for intelligent analysis.
     """
     
     def __init__(self, api_key: Optional[str] = None):
@@ -39,39 +51,33 @@ class LogAnalysisAgent:
         if not self.api_key:
             raise ValueError("Gemini API key not provided. Set GEMINI_API_KEY environment variable or pass it to constructor.")
         
-        genai.configure(api_key=self.api_key)
-        self.model = genai.GenerativeModel('gemini-pro')
+        # Initialize LangChain LLM
+        self.llm = ChatGoogleGenerativeAI(
+            model="gemini-pro",
+            google_api_key=self.api_key,
+            temperature=0.3
+        )
         
-    def _create_analysis_prompt(self, logs: str, context: Optional[str] = None) -> str:
-        """
-        Create a structured prompt for log analysis
-        
-        Args:
-            logs: The error logs to analyze
-            context: Optional additional context about the system
-            
-        Returns:
-            Formatted prompt string
-        """
-        base_prompt = f"""You are an expert backend engineer specializing in log analysis and debugging.
+        # Initialize prompt template
+        self.prompt_template = PromptTemplate(
+            input_variables=["logs", "context"],
+            template="""You are an expert backend engineer specializing in log analysis and debugging.
 Analyze the following server/backend error logs and provide a comprehensive analysis.
 
 ERROR LOGS:
 {logs}
-"""
-        
-        if context:
-            base_prompt += f"\nADDITIONAL CONTEXT:\n{context}\n"
-        
-        base_prompt += """
+
+ADDITIONAL CONTEXT:
+{context}
+
 Please provide your analysis in the following JSON format:
-{
+{{
     "root_cause": "Primary reason for the error",
     "severity": "CRITICAL|HIGH|MEDIUM|LOW",
     "recommendations": ["step 1", "step 2", "..."],
     "affected_components": ["component1", "component2", "..."],
     "detailed_analysis": "Comprehensive explanation of the issue"
-}
+}}
 
 Focus on:
 1. Identifying the root cause of the error
@@ -79,8 +85,114 @@ Focus on:
 3. Providing actionable recommendations to fix the issue
 4. Identifying affected system components
 5. Assessing the severity and impact
-"""
-        return base_prompt
+
+Return only valid JSON."""
+        )
+        
+        # Build the LangGraph workflow
+        self.workflow = self._build_workflow()
+    
+    def _build_workflow(self) -> StateGraph:
+        """
+        Build the LangGraph workflow for log analysis
+        
+        Returns:
+            Compiled StateGraph workflow
+        """
+        # Create the graph
+        graph = StateGraph(AgentState)
+        
+        # Add nodes
+        graph.add_node("analyze", self._analyze_node)
+        graph.add_node("format", self._format_node)
+        
+        # Define edges
+        graph.set_entry_point("analyze")
+        graph.add_edge("analyze", "format")
+        graph.add_edge("format", END)
+        
+        # Compile and return
+        return graph.compile()
+    
+    def _analyze_node(self, state: AgentState) -> AgentState:
+        """
+        Node to analyze logs using LLM
+        
+        Args:
+            state: Current agent state
+            
+        Returns:
+            Updated state with analysis
+        """
+        try:
+            # Format prompt
+            prompt = self.prompt_template.format(
+                logs=state["logs"],
+                context=state.get("context", "No additional context provided")
+            )
+            
+            # Generate analysis
+            response = self.llm.invoke(prompt)
+            analysis_text = response.content
+            
+            # Parse JSON response
+            try:
+                json_start = analysis_text.find('{')
+                json_end = analysis_text.rfind('}') + 1
+                
+                if json_start != -1 and json_end > json_start:
+                    json_str = analysis_text[json_start:json_end]
+                    analysis_data = json.loads(json_str)
+                else:
+                    analysis_data = {
+                        'root_cause': 'See detailed analysis',
+                        'severity': 'UNKNOWN',
+                        'recommendations': [],
+                        'affected_components': [],
+                        'detailed_analysis': analysis_text
+                    }
+            except json.JSONDecodeError:
+                analysis_data = {
+                    'root_cause': 'Analysis completed (see raw_analysis for details)',
+                    'severity': 'UNKNOWN',
+                    'recommendations': [],
+                    'affected_components': [],
+                    'detailed_analysis': analysis_text
+                }
+            
+            state["analysis"] = analysis_data
+            
+        except Exception as e:
+            state["error"] = f"Error during analysis: {str(e)}"
+        
+        return state
+    
+    def _format_node(self, state: AgentState) -> AgentState:
+        """
+        Node to format analysis results
+        
+        Args:
+            state: Current agent state
+            
+        Returns:
+            Updated state with formatted result
+        """
+        if state.get("error"):
+            return state
+        
+        analysis = state.get("analysis", {})
+        
+        result = LogAnalysisResult(
+            root_cause=analysis.get('root_cause', 'Unable to determine'),
+            severity=analysis.get('severity', 'UNKNOWN'),
+            recommendations=analysis.get('recommendations', []),
+            affected_components=analysis.get('affected_components', []),
+            timestamp=datetime.now().isoformat(),
+            raw_analysis=analysis.get('detailed_analysis', 'No detailed analysis available')
+        )
+        
+        state["result"] = result
+        return state
     
     def analyze_logs(self, logs: str, context: Optional[str] = None) -> LogAnalysisResult:
         """
@@ -93,69 +205,23 @@ Focus on:
         Returns:
             LogAnalysisResult object containing structured analysis
         """
-        try:
-            prompt = self._create_analysis_prompt(logs, context)
-            
-            # Generate analysis using Gemini
-            response = self.model.generate_content(prompt)
-            analysis_text = response.text
-            
-            # Try to parse JSON response
-            try:
-                # Extract JSON from response (it might be wrapped in markdown code blocks)
-                json_start = analysis_text.find('{')
-                json_end = analysis_text.rfind('}') + 1
-                
-                if json_start != -1 and json_end > json_start:
-                    json_str = analysis_text[json_start:json_end]
-                    analysis_data = json.loads(json_str)
-                else:
-                    # If no JSON found, create structured response from text
-                    analysis_data = self._parse_unstructured_response(analysis_text)
-                
-                # Create result object
-                result = LogAnalysisResult(
-                    root_cause=analysis_data.get('root_cause', 'Unable to determine'),
-                    severity=analysis_data.get('severity', 'UNKNOWN'),
-                    recommendations=analysis_data.get('recommendations', []),
-                    affected_components=analysis_data.get('affected_components', []),
-                    timestamp=datetime.now().isoformat(),
-                    raw_analysis=analysis_data.get('detailed_analysis', analysis_text)
-                )
-                
-                return result
-                
-            except json.JSONDecodeError:
-                # Fallback: return raw analysis
-                return LogAnalysisResult(
-                    root_cause="Analysis completed (see raw_analysis for details)",
-                    severity="UNKNOWN",
-                    recommendations=[],
-                    affected_components=[],
-                    timestamp=datetime.now().isoformat(),
-                    raw_analysis=analysis_text
-                )
-                
-        except Exception as e:
-            raise Exception(f"Error during log analysis: {str(e)}")
-    
-    def _parse_unstructured_response(self, text: str) -> Dict[str, Any]:
-        """
-        Parse unstructured text response into structured format
-        
-        Args:
-            text: Unstructured text response
-            
-        Returns:
-            Dictionary with extracted information
-        """
-        return {
-            'root_cause': 'See detailed analysis',
-            'severity': 'UNKNOWN',
-            'recommendations': [],
-            'affected_components': [],
-            'detailed_analysis': text
+        # Initialize state
+        initial_state: AgentState = {
+            "logs": logs,
+            "context": context,
+            "analysis": None,
+            "result": None,
+            "error": None
         }
+        
+        # Run the workflow
+        final_state = self.workflow.invoke(initial_state)
+        
+        # Check for errors
+        if final_state.get("error"):
+            raise Exception(final_state["error"])
+        
+        return final_state["result"]
     
     def batch_analyze_logs(self, log_entries: List[Dict[str, str]]) -> List[LogAnalysisResult]:
         """
