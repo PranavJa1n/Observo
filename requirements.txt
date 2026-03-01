@@ -1,0 +1,6 @@
+# Core dependencies for Agentic AI Log Analysis Service
+google-generativeai>=0.3.0
+python-dotenv>=1.0.0
+
+# Optional utilities
+python-dateutil>=2.8.2
