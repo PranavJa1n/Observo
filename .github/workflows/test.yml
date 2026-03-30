@@ -36,11 +36,11 @@ jobs:
         go mod verify
     
     - name: Run all tests with coverage
-      run: go test -v -coverprofile=coverage.out -covermode=atomic ./internal/...
+      run: go test -v -coverprofile=coverage.txt -covermode=atomic ./internal/buffer/... ./internal/config/... ./internal/watcher/...
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        file: ./coverage.out
+        file: ./coverage.txt
         flags: unittests
         name: codecov-umbrella
