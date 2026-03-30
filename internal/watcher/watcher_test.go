@@ -277,6 +277,9 @@ func TestFileCleared(t *testing.T) {
 		t.Fatalf("Failed to truncate file: %v", err)
 	}
 
+	// Give watcher time to detect truncation
+	time.Sleep(200 * time.Millisecond)
+
 	// Write new logs after clearing
 	f, err = os.OpenFile(logFile, os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
