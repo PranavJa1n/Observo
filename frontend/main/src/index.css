@@ -1,0 +1,80 @@
+:root {
+  --bg-color: #07050e; /* Deep dark black/purple */
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --accent-purple: #764ba2;
+  --accent-purple-light: #9b51e0;
+  --accent-blue: #667eea;
+  --text-main: #f3f3f3;
+  --text-muted: #a09ea5;
+  --grid-color: rgba(255, 255, 255, 0.02);
+  --rad-color: rgba(118, 75, 162, 0.15);
+  --sub-panel-bg: rgba(0, 0, 0, 0.3);
+  --code-bg: #0a0a0a;
+  --icon-bg: rgba(255, 255, 255, 0.05);
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+body.light-mode {
+  --bg-color: #fff7ed; /* Very light subtle orange */
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(0, 0, 0, 0.08);
+  --accent-purple: #f97316; /* Orange */
+  --accent-purple-light: #ea580c;
+  --accent-blue: #fb923c;
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --grid-color: rgba(0, 0, 0, 0.03);
+  --rad-color: rgba(249, 115, 22, 0.12); /* Orange glow */
+  --sub-panel-bg: rgba(0, 0, 0, 0.03);
+  --code-bg: #f1f5f9;
+  --icon-bg: rgba(0, 0, 0, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent-purple);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-purple-light);
+}
+
+.glass-panel {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+
+h1, h2, h3, h4 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
