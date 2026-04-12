@@ -1,48 +1,137 @@
 import React, { useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Float } from '@react-three/drei';
+import { Float, Sphere, Line } from '@react-three/drei';
 import { ArrowRight, Terminal, Command } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import * as THREE from 'three';
 
-function LogStream() {
-  const groupRef = useRef();
+// Represents the Observo HDBSCAN Clustering Engine
+function ClusteringEngine() {
+  const NODES_COUNT = 150;
+  
+  // 3 main clusters for "normal" log patterns, and 1 for "noise/anomalies"
+  const clusterCenters = [
+    new THREE.Vector3(-2.5, 1.5, 1),   // Cluster 1 (Blue)
+    new THREE.Vector3(2.5, -1.5, -1),  // Cluster 2 (Purple)
+    new THREE.Vector3(0, -2.5, 2),     // Cluster 3 (Orange)
+  ];
 
-  // Create an array of random block lengths to look like log text
-  const blocks = useMemo(() => Array.from({ length: 30 }).map(() => ({
-    x: (Math.random() - 0.5) * 4,
-    y: (Math.random() - 0.5) * 10,
-    z: (Math.random() - 0.5) * 4,
-    width: Math.random() * 2 + 0.5,
-    speed: Math.random() * 0.05 + 0.02
-  })), []);
+  const nodes = useMemo(() => {
+    return Array.from({ length: NODES_COUNT }).map(() => {
+      // 10% chance to be an anomaly (HDBSCAN Noise)
+      const isAnomaly = Math.random() > 0.9;
+      // Assign to a random base cluster
+      const clusterId = isAnomaly ? -1 : Math.floor(Math.random() * 3);
+      
+      // Random chaotic starting position
+      const initialPos = new THREE.Vector3(
+        (Math.random() - 0.5) * 12,
+        (Math.random() - 0.5) * 12,
+        (Math.random() - 0.5) * 12
+      );
 
-  useFrame(() => {
-    if (groupRef.current) {
-      groupRef.current.children.forEach((mesh, index) => {
-        mesh.position.y += blocks[index].speed;
-        // reset if it goes too high
-        if (mesh.position.y > 5) {
-          mesh.position.y = -5;
-        }
-      });
-    }
+      // Tight offset within its assigned cluster
+      const clusterOffset = new THREE.Vector3(
+        (Math.random() - 0.5) * 1.5,
+        (Math.random() - 0.5) * 1.5,
+        (Math.random() - 0.5) * 1.5
+      );
+
+      // Color based on cluster ID
+      let color;
+      if (isAnomaly) color = '#ff4b4b'; // Red
+      else if (clusterId === 0) color = '#667eea'; // Blue
+      else if (clusterId === 1) color = '#9b51e0'; // Purple
+      else color = '#ea580c'; // Orange
+
+      // Random float speeds
+      const speed = Math.random() * 0.5 + 0.5;
+      const timeOffset = Math.random() * Math.PI * 2;
+
+      return {
+        initialPos,
+        clusterId,
+        clusterOffset,
+        color,
+        isAnomaly,
+        speed,
+        timeOffset,
+        scatterOffset: new THREE.Vector3(0, 0, 0),
+        scatterVelocity: new THREE.Vector3(0, 0, 0),
+        ref: React.createRef()
+      };
+    });
+  }, []);
+
+  useFrame(({ clock, pointer }) => {
+    const t = clock.getElapsedTime();
+    
+    // Cycle between 0 (Chaos) and 1 (Clustered) over time
+    const cycle = (Math.sin(t * 0.5) + 1) / 2;
+    const progress = Math.pow(Math.sin(cycle * Math.PI / 2), 2);
+
+    nodes.forEach(node => {
+      if (!node.ref.current) return;
+
+      let basePos = new THREE.Vector3();
+
+      if (node.isAnomaly) {
+        basePos.x = node.initialPos.x + Math.sin(t * node.speed + node.timeOffset) * 2;
+        basePos.y = node.initialPos.y + Math.cos(t * node.speed + node.timeOffset) * 2;
+        basePos.z = node.initialPos.z + Math.sin(t * 0.5 + node.timeOffset) * 2;
+      } else {
+        const targetPos = clusterCenters[node.clusterId].clone().add(node.clusterOffset);
+        targetPos.x += Math.sin(t * node.speed + node.timeOffset) * 0.2;
+        targetPos.y += Math.cos(t * node.speed + node.timeOffset) * 0.2;
+        basePos.lerpVectors(node.initialPos, targetPos, progress);
+      }
+
+      // Mouse Interaction: Determine 2D distance from mouse proxy to the node
+      const currentX = basePos.x + node.scatterOffset.x;
+      const currentY = basePos.y + node.scatterOffset.y;
+      
+      // Rough projection of normal mapped pointer [-1, 1] to 3D bounds at Z=0
+      const mouseX = pointer.x * 8; 
+      const mouseY = pointer.y * 5;
+      
+      const dX = currentX - mouseX;
+      const dY = currentY - mouseY;
+      const dist = Math.sqrt(dX * dX + dY * dY);
+
+      // If mouse is near, add explosive escape velocity
+      if (dist < 2.0 && dist > 0.01) { 
+        const force = (2.0 - dist) * 0.08;
+        node.scatterVelocity.x += (dX / dist) * force;
+        node.scatterVelocity.y += (dY / dist) * force;
+        node.scatterVelocity.z += (Math.random() - 0.5) * force * 2;
+      }
+
+      // Apply velocities to offsets
+      node.scatterOffset.add(node.scatterVelocity);
+      
+      // Physics: Friction slows down the velocity
+      node.scatterVelocity.multiplyScalar(0.92);
+      
+      // Physics: Spring tension pulls the offset back to 0 (reform cluster)
+      node.scatterOffset.multiplyScalar(0.92);
+
+      // Render Final Position
+      node.ref.current.position.copy(basePos).add(node.scatterOffset);
+    });
   });
 
   return (
-    <group ref={groupRef}>
-      {blocks.map((b, i) => (
-        <mesh key={i} position={[b.x, b.y, b.z]}>
-          <boxGeometry args={[b.width, 0.15, 0.5]} />
+    <group>
+      {nodes.map((n, i) => (
+        <Sphere key={i} ref={n.ref} args={[n.isAnomaly ? 0.15 : 0.08, 16, 16]}>
           <meshStandardMaterial 
-            color={i % 3 === 0 ? "#ea580c" : "#9b51e0"} 
-            emissive={i % 3 === 0 ? "#ea580c" : "#9b51e0"}
-            emissiveIntensity={0.5}
-            transparent
-            opacity={0.8}
-            wireframe={i % 4 === 0}
+            color={n.color}
+            emissive={n.color}
+            emissiveIntensity={n.isAnomaly ? 2 : 0.8}
+            roughness={0.2}
           />
-        </mesh>
+        </Sphere>
       ))}
     </group>
   );
@@ -98,11 +187,15 @@ export default function Hero() {
       </div>
       
       <div style={{ flex: '1', height: '500px', width: '100%', position: 'relative' }}>
-        <Canvas camera={{ position: [0, 0, 8], fov: 45 }}>
+        <Canvas camera={{ position: [0, 0, 8], fov: 50 }}>
           <ambientLight intensity={0.2} />
-          <pointLight position={[10, 10, 10]} intensity={1.5} color="#9b51e0" />
-          <Float floatIntensity={1.5} speed={1.5}>
-            <LogStream />
+          <pointLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
+          <pointLight position={[-10, -10, -10]} intensity={1} color="#667eea" />
+          
+          <Float floatIntensity={1} speed={1} rotationIntensity={0.5}>
+            <React.Suspense fallback={null}>
+              <ClusteringEngine />
+            </React.Suspense>
           </Float>
         </Canvas>
       </div>

@@ -4,7 +4,7 @@ import { Terminal, Copy, CheckCircle } from 'lucide-react';
 
 export default function Installation() {
   const [copied, setCopied] = useState(false);
-  const codeString = `go run cmd/main.go init\ngo run cmd/main.go start`;
+  const codeString = `curl -sL https://raw.githubusercontent.com/PranavJa1n/Observo/main/install.sh | bash\nobservo init\nobservo start`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(codeString);
@@ -19,13 +19,13 @@ export default function Installation() {
         <div style={{ flex: '1', minWidth: '300px' }}>
           <h2 style={{ fontSize: '2.5rem', marginBottom: '20px' }}>Up and running in seconds.</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '30px' }}>
-            Observo doesn't require massive architecture shifts. Initialize the CLI in your application directory, provide your API key, and it instantly begins clustering.
+            Observo doesn't require massive architecture shifts. Just run our automated installation script, supply your API key, and it instantly begins clustering your logs.
           </p>
           
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <li style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-purple-light)' }} />
-              Requires Go 1.21+ & Python 3.9+
+              Installs binary cross-platform effortlessly
             </li>
             <li style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent-purple-light)' }} />
@@ -38,12 +38,7 @@ export default function Installation() {
           </ul>
         </div>
 
-        <motion.div 
-          initial={{ opacity: 0, x: 20 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true }}
-          style={{ flex: '1', minWidth: '300px' }}
-        >
+        <div style={{ flex: '1', minWidth: '300px' }}>
           <div style={{ 
             background: 'var(--code-bg)', 
             borderRadius: '12px', 
@@ -58,7 +53,7 @@ export default function Installation() {
               alignItems: 'center',
               borderBottom: '1px solid var(--card-border)'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                 <Terminal size={16} /> Terminal
               </div>
               <button 
@@ -72,14 +67,16 @@ export default function Installation() {
               </button>
             </div>
             
-            <div style={{ padding: '24px', fontFamily: 'monospace', fontSize: '1rem', lineHeight: '1.8' }}>
-              <div><span style={{ color: 'var(--accent-purple-light)' }}>$</span> go run cmd/main.go init</div>
-              <div style={{ color: 'var(--text-muted)', marginBottom: '12px' }}># Interactively setup your local config</div>
-              <div><span style={{ color: 'var(--accent-purple-light)' }}>$</span> go run cmd/main.go start</div>
-              <div style={{ color: 'var(--text-muted)' }}># Monitor logs & serve dashboard</div>
+            <div style={{ padding: '24px', fontFamily: 'monospace', fontSize: '0.95rem', lineHeight: '1.8', color: 'var(--text-main)', wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
+              <div><span style={{ color: 'var(--accent-purple-light)' }}>$</span> curl -sL https://raw.githubusercontent.com/PranavJa1n/Observo/main/install.sh | bash</div>
+              <div style={{ color: 'var(--text-muted)', marginBottom: '12px' }}># 1. Download and install core binary</div>
+              <div><span style={{ color: 'var(--accent-purple-light)' }}>$</span> observo init</div>
+              <div style={{ color: 'var(--text-muted)', marginBottom: '12px' }}># 2. Interactively setup your local config</div>
+              <div><span style={{ color: 'var(--accent-purple-light)' }}>$</span> observo start</div>
+              <div style={{ color: 'var(--text-muted)' }}># 3. Monitor logs & serve dashboard</div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
       </div>
     </section>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Hero from './components/Hero';
 import Features from './components/Features';
-import Installation from './components/Installation';
+import HowToInstall from './components/HowToInstall';
 import Commands from './components/Commands';
 import { Sun, Moon, Database, Command, Terminal, Globe } from 'lucide-react';
 
@@ -11,7 +11,7 @@ function Landing() {
     <main>
       <Hero />
       <Features />
-      <Installation />
+      <HowToInstall />
     </main>
   );
 }

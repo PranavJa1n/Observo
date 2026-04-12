@@ -36,14 +36,15 @@ export default function Features() {
         gap: '30px' 
       }}>
         {features.map((feat, idx) => (
-          <motion.div
+          <div
             key={idx}
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: idx * 0.2 }}
             className="glass-panel"
-            style={{ padding: '40px 30px' }}
+            style={{ 
+              padding: '40px 30px',
+              animation: `fadeUp 0.5s ease forwards`,
+              animationDelay: `${idx * 0.15}s`,
+              opacity: 0
+            }}
           >
             <div style={{ 
               width: '64px', height: '64px', 
@@ -57,7 +58,7 @@ export default function Features() {
             </div>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '16px' }}>{feat.title}</h3>
             <p style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>{feat.desc}</p>
-          </motion.div>
+          </div>
         ))}
       </div>
     </section>
