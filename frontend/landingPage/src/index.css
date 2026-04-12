@@ -1,0 +1,117 @@
+:root {
+  --bg-color: #07050e; 
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(255, 255, 255, 0.05);
+  --accent-purple: #764ba2;
+  --accent-purple-light: #9b51e0;
+  --accent-blue: #667eea;
+  --text-main: #f3f3f3;
+  --text-muted: #a09ea5;
+  --grid-color: rgba(255, 255, 255, 0.02);
+  --rad-color: rgba(118, 75, 162, 0.15);
+  --sub-panel-bg: rgba(0, 0, 0, 0.3);
+  --code-bg: #0a0a0a;
+  --icon-bg: rgba(255, 255, 255, 0.05);
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+body.light-mode {
+  --bg-color: #fff7ed; 
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(0, 0, 0, 0.08);
+  --accent-purple: #f97316; 
+  --accent-purple-light: #ea580c;
+  --accent-blue: #fb923c;
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --grid-color: rgba(0, 0, 0, 0.03);
+  --rad-color: rgba(249, 115, 22, 0.12); 
+  --sub-panel-bg: rgba(0, 0, 0, 0.03);
+  --code-bg: #f1f5f9;
+  --icon-bg: rgba(0, 0, 0, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent-purple);
+  border-radius: 4px;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.glass-panel {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+
+section {
+  padding: 100px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, var(--accent-purple-light), var(--accent-blue));
+  color: white;
+  border: none;
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.primary-button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.secondary-button {
+  background: var(--icon-bg);
+  color: var(--text-main);
+  border: 1px solid var(--card-border);
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.secondary-button:hover {
+  background: var(--card-border);
+}
