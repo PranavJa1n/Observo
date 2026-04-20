@@ -11,10 +11,8 @@ python-dotenv>=1.0.0
 # Clustering stack
 hdbscan>=0.8.33
 scikit-learn>=1.4.0
-pandas>=2.2.0
 numpy>=1.26.0
 scipy>=1.10.0
-sentence-transformers>=2.2.2
 
 # FastAPI and server
 fastapi>=0.110.0
