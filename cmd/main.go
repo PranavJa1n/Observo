@@ -166,7 +166,13 @@ func run(cfg *config.Config) error {
 	if _, err := exec.LookPath("python3"); err == nil {
 		pythonBin = "python3"
 	}
-	pythonCmd := exec.Command(pythonBin, "python/main.py")
+	// Resolve path to Python service — use OBSERVO_HOME if set, else fall back to ./service/main.py
+	observoHome := os.Getenv("OBSERVO_HOME")
+	pythonServicePath := "service/main.py"
+	if observoHome != "" {
+		pythonServicePath = observoHome + "/service/main.py"
+	}
+	pythonCmd := exec.Command(pythonBin, pythonServicePath)
 
 	pythonCmd.Env = append(os.Environ(), "ANTHROPIC_API_KEY="+cfg.APIKey)
 	pythonCmd.Stdout = os.Stdout
