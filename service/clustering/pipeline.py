@@ -109,6 +109,7 @@ class LogClusteringPipeline:
         self._ensure_trained()
         payload: Dict[str, Any] = {
             "vectorizer": self.feature_extractor.vectorizer,
+            "svd": getattr(self.feature_extractor, "svd", None),
             "clusterer": self.clusterer.clusterer,
             "config": self.config,
             "stats": self.stats,
@@ -122,6 +123,8 @@ class LogClusteringPipeline:
             raise FileNotFoundError(f"Artifacts not found at {self._artifact_path}")
         payload: Dict[str, Any] = joblib.load(self._artifact_path)
         self.feature_extractor.vectorizer = payload["vectorizer"]
+        if "svd" in payload and payload["svd"] is not None:
+            self.feature_extractor.svd = payload["svd"]
         self.clusterer.clusterer = payload["clusterer"]
         self.clusterer.is_trained = True
         self.clusterer.good_cluster_id = payload.get("good_cluster_id")

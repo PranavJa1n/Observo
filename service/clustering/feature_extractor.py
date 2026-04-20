@@ -12,6 +12,7 @@ import re
 from typing import Iterable
 
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
 
 from .config import FeatureConfig
 
@@ -89,6 +90,7 @@ class LogFeatureExtractor:
             analyzer=self.config.analyzer,
             lowercase=self.config.lowercase,
         )
+        self.svd = TruncatedSVD(n_components=50, random_state=42)
 
     @staticmethod
     def _normalize(log: str) -> str:
@@ -134,11 +136,14 @@ class LogFeatureExtractor:
         return [self._normalize(log) for log in logs]
 
     def fit(self, logs: Iterable[str]) -> "LogFeatureExtractor":
-        self.vectorizer.fit(self._prepare(logs))
+        tfidf_matrix = self.vectorizer.fit_transform(self._prepare(logs))
+        self.svd.fit(tfidf_matrix)
         return self
 
     def transform(self, logs: Iterable[str]):
-        return self.vectorizer.transform(self._prepare(logs))
+        tfidf_matrix = self.vectorizer.transform(self._prepare(logs))
+        return self.svd.transform(tfidf_matrix)
 
     def fit_transform(self, logs: Iterable[str]):
-        return self.vectorizer.fit_transform(self._prepare(logs))
+        tfidf_matrix = self.vectorizer.fit_transform(self._prepare(logs))
+        return self.svd.fit_transform(tfidf_matrix)
