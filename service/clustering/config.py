@@ -5,10 +5,20 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
+
+
+def _int_env(name: str, default: Optional[int] = None) -> Optional[int]:
+    value = os.getenv(name)
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
 
 
 @dataclass(slots=True)
@@ -32,8 +42,13 @@ class ClusteringConfig:
     min_samples: int = field(default_factory=lambda: int(os.getenv("CLUSTER_MIN_SAMPLES", 5)))
     cluster_selection_epsilon: float = field(default_factory=lambda: float(os.getenv("CLUSTER_EPSILON", 0.0)))
     feature: FeatureConfig = field(default_factory=FeatureConfig)
-    training_sample_size: int = field(default_factory=lambda: int(os.getenv("CLUSTER_TRAINING_SAMPLE_SIZE", 25000)))
+    training_sample_size: Optional[int] = field(default_factory=lambda: _int_env("CLUSTER_TRAINING_SAMPLE_SIZE", None))
+    training_fraction: float = field(default_factory=lambda: float(os.getenv("CLUSTER_TRAINING_FRACTION", 0.5)))
     max_lines_per_file: int = field(default_factory=lambda: int(os.getenv("CLUSTER_LINES_PER_FILE", 20000)))
+    
+    # RL Optimization settings
+    use_rl_optimization: bool = field(default_factory=lambda: os.getenv("CLUSTER_USE_RL_OPTIMIZATION", "true").lower() == "true")
+    rl_n_trials: int = field(default_factory=lambda: int(os.getenv("CLUSTER_RL_N_TRIALS", 10)))
 
     def ensure_dirs(self) -> None:
         self.model_dir.mkdir(parents=True, exist_ok=True)

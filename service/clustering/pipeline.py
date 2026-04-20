@@ -12,7 +12,7 @@ import joblib
 from .cluster_classifier import ClusterSplit, split_clusters
 from .cluster_model import LogClusterer
 from .config import ClusteringConfig
-from .dataset_loader import load_hdfs_logs
+from .dataset_loader import count_log_lines, load_hdfs_logs
 from .feature_extractor import LogFeatureExtractor
 
 
@@ -30,11 +30,33 @@ class PipelineStats:
 class LogClusteringPipeline:
     """Coordinates feature extraction, clustering, and classification."""
 
-    def __init__(self, config: ClusteringConfig | None = None) -> None:
+    def __init__(
+        self,
+        config: ClusteringConfig | None = None,
+        use_rl_optimization: bool | None = None,
+        rl_n_trials: int | None = None,
+    ) -> None:
+        """Initialize the pipeline with optional RL-based optimization.
+        
+        Args:
+            config: Clustering configuration
+            use_rl_optimization: Whether to use RL-based hyperparameter optimization
+                                (overrides config if provided)
+            rl_n_trials: Number of trials for RL optimization (overrides config if provided)
+        """
         self.config = config or ClusteringConfig()
         self.config.ensure_dirs()
         self.feature_extractor = LogFeatureExtractor(self.config.feature)
-        self.clusterer = LogClusterer(self.config)
+        
+        # Use provided values or fall back to config
+        _use_rl = self.config.use_rl_optimization if use_rl_optimization is None else use_rl_optimization
+        _n_trials = self.config.rl_n_trials if rl_n_trials is None else rl_n_trials
+        
+        self.clusterer = LogClusterer(
+            self.config,
+            use_rl_optimization=_use_rl,
+            rl_n_trials=_n_trials,
+        )
         self.stats = PipelineStats()
         self._trained = False
         self._artifact_path = self.config.model_dir / "log_clustering_pipeline.joblib"
@@ -43,10 +65,24 @@ class LogClusteringPipeline:
     # Training utilities
     # ------------------------------------------------------------------
     def load_training_logs(self) -> List[str]:
+        dataset_dir = self.config.dataset_dir
+        total_line_cap: Optional[int] = None
+
+        if self.config.training_fraction and self.config.training_fraction > 0:
+            total_lines = count_log_lines(dataset_dir)
+            fraction_cap = max(1, int(total_lines * self.config.training_fraction))
+            total_line_cap = fraction_cap
+
+        if self.config.training_sample_size:
+            if total_line_cap is None:
+                total_line_cap = self.config.training_sample_size
+            else:
+                total_line_cap = min(total_line_cap, self.config.training_sample_size)
+
         return load_hdfs_logs(
-            dataset_dir=self.config.dataset_dir,
+            dataset_dir=dataset_dir,
             max_lines_per_file=self.config.max_lines_per_file,
-            total_line_cap=self.config.training_sample_size,
+            total_line_cap=total_line_cap,
         )
 
     def train(self, logs: Iterable[str]) -> ClusterSplit:
@@ -104,6 +140,7 @@ class LogClusteringPipeline:
             "config": self.config,
             "stats": self.stats,
             "good_cluster_id": self.clusterer.good_cluster_id,
+            "optimization_result": getattr(self.clusterer, "optimization_result", None),
         }
         joblib.dump(payload, self._artifact_path)
 
@@ -115,6 +152,7 @@ class LogClusteringPipeline:
         self.clusterer.clusterer = payload["clusterer"]
         self.clusterer.is_trained = True
         self.clusterer.good_cluster_id = payload.get("good_cluster_id")
+        self.clusterer.optimization_result = payload.get("optimization_result")
         self.stats = payload.get("stats", PipelineStats())
         self._trained = True
 
@@ -124,6 +162,12 @@ class LogClusteringPipeline:
         data["trained"] = self._trained
         data["good_cluster_id"] = self.clusterer.good_cluster_id
         data["model_path"] = str(self._artifact_path)
+        if hasattr(self.clusterer, "optimization_result") and self.clusterer.optimization_result:
+            data["rl_optimization"] = {
+                "best_score": self.clusterer.optimization_result.best_score,
+                "best_params": self.clusterer.optimization_result.best_params.to_dict(),
+                "n_trials": len(self.clusterer.optimization_result.all_trials),
+            }
         return data
 
     def stats_json(self) -> str:

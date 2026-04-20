@@ -47,3 +47,16 @@ def load_hdfs_logs(
                     return logs
 
     return logs
+
+
+def count_log_lines(dataset_dir: Path, max_files: Optional[int] = None) -> int:
+    """Return the total number of log lines available in the dataset."""
+
+    total = 0
+    for file_path in iter_log_files(dataset_dir, max_files):
+        if not file_path.exists():
+            continue
+        with file_path.open("r", encoding="utf-8", errors="ignore") as handle:
+            for _ in handle:
+                total += 1
+    return total

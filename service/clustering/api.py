@@ -25,7 +25,7 @@ class ClusterBatchResponse(BaseModel):
 
 
 class TrainRequest(BaseModel):
-    reload_artifacts: bool = False
+    force_retrain: bool = False
 
 
 class TrainResponse(BaseModel):
@@ -35,8 +35,14 @@ class TrainResponse(BaseModel):
 config = ClusteringConfig()
 pipeline = LogClusteringPipeline(config)
 
+# Try to load existing artifacts on startup
 if pipeline.artifacts_exist():
-    pipeline.load_artifacts()
+    try:
+        pipeline.load_artifacts()
+    except Exception as e:
+        # Log the error but continue - training can be done via /train endpoint
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to load artifacts on startup: {e}")
 
 app = FastAPI(title="Observo Clustering Service", version="1.0.0")
 
@@ -48,7 +54,22 @@ def health() -> dict:
 
 @app.post("/train", response_model=TrainResponse)
 def train(request: TrainRequest) -> TrainResponse:
+    """Train or retrain the clustering pipeline.
+    
+    Args:
+        request: Training request with optional force_retrain flag
+        
+    Returns:
+        Training statistics and summary
+    """
     try:
+        # Check if already trained and force_retrain is False
+        if pipeline._trained and not request.force_retrain:
+            stats = pipeline.stats_dict()
+            stats["message"] = "Pipeline already trained. Use force_retrain=true to retrain."
+            return TrainResponse(stats=stats)
+        
+        # Train the pipeline
         split = pipeline.train_from_dataset()
         pipeline.save_artifacts()
     except Exception as exc:  # noqa: BLE001 - we want to surface all failures to client
