@@ -28,15 +28,15 @@ function App() {
         
         <header style={{ marginBottom: '48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '8px' }}>Observo</h1>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h1 style={{ fontSize: '2rem', marginBottom: '4px', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-main)' }}>Observo</h1>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
               AI-Powered Log Analysis Dashboard
-              {error && <span style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '20px', background: 'rgba(255, 75, 75, 0.15)', color: '#ff6b6b', border: '1px solid rgba(255, 75, 75, 0.3)' }}>Backend Offline</span>}
+              {error && <span style={{ fontSize: '0.72rem', padding: '3px 10px', borderRadius: '20px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>Backend Offline</span>}
             </p>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {loading && <div style={{ color: 'var(--accent-purple-light)' }}>Syncing...</div>}
+            {loading && <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Syncing...</div>}
             
             <button 
               onClick={() => setIsLightMode(!isLightMode)}

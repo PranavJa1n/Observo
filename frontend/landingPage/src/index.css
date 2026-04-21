@@ -1,31 +1,33 @@
 :root {
-  --bg-color: #07050e; 
-  --card-bg: rgba(255, 255, 255, 0.03);
-  --card-border: rgba(255, 255, 255, 0.05);
-  --accent-purple: #764ba2;
-  --accent-purple-light: #9b51e0;
-  --accent-blue: #667eea;
-  --text-main: #f3f3f3;
-  --text-muted: #a09ea5;
-  --grid-color: rgba(255, 255, 255, 0.02);
-  --rad-color: rgba(118, 75, 162, 0.15);
-  --sub-panel-bg: rgba(0, 0, 0, 0.3);
-  --code-bg: #0a0a0a;
-  --icon-bg: rgba(255, 255, 255, 0.05);
+  --bg-color: #0a0a0a;
+  --card-bg: #111111;
+  --card-solid: #111111;
+  --card-border: rgba(255, 255, 255, 0.07);
+  --accent-purple: #6b7280;
+  --accent-purple-light: #e2e8f0;
+  --accent-blue: #94a3b8;
+  --text-main: #ededed;
+  --text-muted: #71717a;
+  --grid-color: rgba(255, 255, 255, 0.025);
+  --rad-color: rgba(255, 255, 255, 0.02);
+  --sub-panel-bg: #0d0d0d;
+  --code-bg: #0d0d0d;
+  --icon-bg: #1a1a1a;
   --font-body: 'Inter', system-ui, sans-serif;
 }
 
 body.light-mode {
-  --bg-color: #fff7ed; 
+  --bg-color: #fff7ed;
   --card-bg: rgba(255, 255, 255, 0.85);
+  --card-solid: #ffffff;
   --card-border: rgba(0, 0, 0, 0.08);
-  --accent-purple: #f97316; 
+  --accent-purple: #f97316;
   --accent-purple-light: #ea580c;
   --accent-blue: #fb923c;
   --text-main: #1f2937;
   --text-muted: #6b7280;
   --grid-color: rgba(0, 0, 0, 0.03);
-  --rad-color: rgba(249, 115, 22, 0.12); 
+  --rad-color: rgba(249, 115, 22, 0.12);
   --sub-panel-bg: rgba(0, 0, 0, 0.03);
   --code-bg: #f1f5f9;
   --icon-bg: rgba(0, 0, 0, 0.05);
@@ -46,29 +48,26 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-color);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--accent-purple);
-  border-radius: 4px;
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-color); }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
 
 .text-gradient {
-  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple-light) 100%);
+  background: linear-gradient(135deg, #e2e8f0 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body.light-mode .text-gradient {
+  background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .glass-panel {
   background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border-radius: 16px;
 }
 
 section {
@@ -78,12 +77,12 @@ section {
 }
 
 .primary-button {
-  background: linear-gradient(135deg, var(--accent-purple-light), var(--accent-blue));
-  color: white;
+  background: #ededed;
+  color: #0a0a0a;
   border: none;
-  padding: 14px 28px;
+  padding: 13px 26px;
   border-radius: 8px;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s, transform 0.2s;
@@ -92,18 +91,17 @@ section {
   align-items: center;
   gap: 8px;
 }
-.primary-button:hover {
-  opacity: 0.9;
-  transform: translateY(-2px);
-}
+.primary-button:hover { opacity: 0.85; transform: translateY(-2px); }
+
+body.light-mode .primary-button { background: #ea580c; color: white; }
 
 .secondary-button {
-  background: var(--icon-bg);
+  background: transparent;
   color: var(--text-main);
   border: 1px solid var(--card-border);
-  padding: 14px 28px;
+  padding: 13px 26px;
   border-radius: 8px;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -112,17 +110,9 @@ section {
   align-items: center;
   gap: 8px;
 }
-.secondary-button:hover {
-  background: var(--card-border);
-}
+.secondary-button:hover { background: var(--icon-bg); border-color: rgba(255,255,255,0.15); }
 
 @keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
 }

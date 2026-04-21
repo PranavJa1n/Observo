@@ -1,204 +1,162 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, Sphere, Line } from '@react-three/drei';
 import { ArrowRight, Terminal, Command } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import * as THREE from 'three';
 
-// Represents the Observo HDBSCAN Clustering Engine
-function ClusteringEngine() {
-  const NODES_COUNT = 150;
-  
-  // 3 main clusters for "normal" log patterns, and 1 for "noise/anomalies"
-  const clusterCenters = [
-    new THREE.Vector3(-2.5, 1.5, 1),   // Cluster 1 (Blue)
-    new THREE.Vector3(2.5, -1.5, -1),  // Cluster 2 (Purple)
-    new THREE.Vector3(0, -2.5, 2),     // Cluster 3 (Orange)
-  ];
+const LOG_LINES = [
+  { type: 'info',  text: '[INFO]  2026-04-17 12:00:01  Server started on :8080' },
+  { type: 'info',  text: '[INFO]  2026-04-17 12:00:03  Connected to database' },
+  { type: 'warn',  text: '[WARN]  2026-04-17 12:00:07  High memory usage: 87%' },
+  { type: 'error', text: '[ERROR] 2026-04-17 12:00:09  Unhandled exception in worker thread' },
+  { type: 'info',  text: '[INFO]  2026-04-17 12:00:11  Request GET /api/users 200 OK' },
+  { type: 'error', text: '[ERROR] 2026-04-17 12:00:12  Connection refused: redis:6379' },
+  { type: 'info',  text: '[INFO]  2026-04-17 12:00:14  Request POST /api/orders 201 Created' },
+  { type: 'warn',  text: '[WARN]  2026-04-17 12:00:16  Slow query detected: 4.2s' },
+  { type: 'error', text: '[ERROR] 2026-04-17 12:00:17  Segmentation fault (core dumped)' },
+  { type: 'info',  text: '[INFO]  2026-04-17 12:00:19  Cache hit ratio: 94.3%' },
+  { type: 'cluster', text: '✦ Observo: Clustering 3 anomaly groups...' },
+  { type: 'cluster', text: '✦ Observo: Root cause — redis connection pool exhausted' },
+  { type: 'cluster', text: '✦ Fix: Increase maxconn in redis.conf to 512' },
+];
 
-  const nodes = useMemo(() => {
-    return Array.from({ length: NODES_COUNT }).map(() => {
-      // 10% chance to be an anomaly (HDBSCAN Noise)
-      const isAnomaly = Math.random() > 0.9;
-      // Assign to a random base cluster
-      const clusterId = isAnomaly ? -1 : Math.floor(Math.random() * 3);
-      
-      // Random chaotic starting position
-      const initialPos = new THREE.Vector3(
-        (Math.random() - 0.5) * 12,
-        (Math.random() - 0.5) * 12,
-        (Math.random() - 0.5) * 12
-      );
+const typeColor = {
+  info:    '#71717a',
+  warn:    '#d97706',
+  error:   '#ef4444',
+  cluster: '#22c55e',
+};
 
-      // Tight offset within its assigned cluster
-      const clusterOffset = new THREE.Vector3(
-        (Math.random() - 0.5) * 1.5,
-        (Math.random() - 0.5) * 1.5,
-        (Math.random() - 0.5) * 1.5
-      );
+function AnimatedTerminal() {
+  const containerRef = useRef(null);
 
-      // Color based on cluster ID
-      let color;
-      if (isAnomaly) color = '#ff4b4b'; // Red
-      else if (clusterId === 0) color = '#667eea'; // Blue
-      else if (clusterId === 1) color = '#9b51e0'; // Purple
-      else color = '#ea580c'; // Orange
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    let line = 0;
+    const lines = el.querySelectorAll('.log-line');
+    lines.forEach(l => { l.style.opacity = '0'; l.style.transform = 'translateY(6px)'; });
 
-      // Random float speeds
-      const speed = Math.random() * 0.5 + 0.5;
-      const timeOffset = Math.random() * Math.PI * 2;
-
-      return {
-        initialPos,
-        clusterId,
-        clusterOffset,
-        color,
-        isAnomaly,
-        speed,
-        timeOffset,
-        scatterOffset: new THREE.Vector3(0, 0, 0),
-        scatterVelocity: new THREE.Vector3(0, 0, 0),
-        ref: React.createRef()
-      };
-    });
+    const show = () => {
+      if (line >= lines.length) return;
+      lines[line].style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      lines[line].style.opacity = '1';
+      lines[line].style.transform = 'translateY(0)';
+      line++;
+      setTimeout(show, line < 10 ? 400 : 700);
+    };
+    setTimeout(show, 600);
   }, []);
 
-  useFrame(({ clock, pointer }) => {
-    const t = clock.getElapsedTime();
-    
-    // Cycle between 0 (Chaos) and 1 (Clustered) over time
-    const cycle = (Math.sin(t * 0.5) + 1) / 2;
-    const progress = Math.pow(Math.sin(cycle * Math.PI / 2), 2);
-
-    nodes.forEach(node => {
-      if (!node.ref.current) return;
-
-      let basePos = new THREE.Vector3();
-
-      if (node.isAnomaly) {
-        basePos.x = node.initialPos.x + Math.sin(t * node.speed + node.timeOffset) * 2;
-        basePos.y = node.initialPos.y + Math.cos(t * node.speed + node.timeOffset) * 2;
-        basePos.z = node.initialPos.z + Math.sin(t * 0.5 + node.timeOffset) * 2;
-      } else {
-        const targetPos = clusterCenters[node.clusterId].clone().add(node.clusterOffset);
-        targetPos.x += Math.sin(t * node.speed + node.timeOffset) * 0.2;
-        targetPos.y += Math.cos(t * node.speed + node.timeOffset) * 0.2;
-        basePos.lerpVectors(node.initialPos, targetPos, progress);
-      }
-
-      // Mouse Interaction: Determine 2D distance from mouse proxy to the node
-      const currentX = basePos.x + node.scatterOffset.x;
-      const currentY = basePos.y + node.scatterOffset.y;
-      
-      // Rough projection of normal mapped pointer [-1, 1] to 3D bounds at Z=0
-      const mouseX = pointer.x * 8; 
-      const mouseY = pointer.y * 5;
-      
-      const dX = currentX - mouseX;
-      const dY = currentY - mouseY;
-      const dist = Math.sqrt(dX * dX + dY * dY);
-
-      // If mouse is near, add explosive escape velocity
-      if (dist < 2.0 && dist > 0.01) { 
-        const force = (2.0 - dist) * 0.08;
-        node.scatterVelocity.x += (dX / dist) * force;
-        node.scatterVelocity.y += (dY / dist) * force;
-        node.scatterVelocity.z += (Math.random() - 0.5) * force * 2;
-      }
-
-      // Apply velocities to offsets
-      node.scatterOffset.add(node.scatterVelocity);
-      
-      // Physics: Friction slows down the velocity
-      node.scatterVelocity.multiplyScalar(0.92);
-      
-      // Physics: Spring tension pulls the offset back to 0 (reform cluster)
-      node.scatterOffset.multiplyScalar(0.92);
-
-      // Render Final Position
-      node.ref.current.position.copy(basePos).add(node.scatterOffset);
-    });
-  });
-
   return (
-    <group>
-      {nodes.map((n, i) => (
-        <Sphere key={i} ref={n.ref} args={[n.isAnomaly ? 0.15 : 0.08, 16, 16]}>
-          <meshStandardMaterial 
-            color={n.color}
-            emissive={n.color}
-            emissiveIntensity={n.isAnomaly ? 2 : 0.8}
-            roughness={0.2}
-          />
-        </Sphere>
-      ))}
-    </group>
+    <div style={{
+      background: '#0d0d0d',
+      border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: '14px',
+      overflow: 'hidden',
+      boxShadow: '0 40px 80px rgba(0,0,0,0.6)',
+      width: '100%',
+      maxWidth: '560px',
+    }}>
+      {/* Title bar */}
+      <div style={{
+        background: '#161616',
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ff5f57' }} />
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#febc2e' }} />
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#28c840' }} />
+        <span style={{ marginLeft: 8, fontSize: '0.8rem', color: '#555', fontFamily: 'monospace' }}>observo — log stream</span>
+      </div>
+
+      {/* Log lines */}
+      <div ref={containerRef} style={{ padding: '20px', fontFamily: 'monospace', fontSize: '0.8rem', lineHeight: '1.9', minHeight: '320px' }}>
+        {LOG_LINES.map((l, i) => (
+          <div key={i} className="log-line" style={{ color: typeColor[l.type] || '#aaa', fontWeight: l.type === 'cluster' ? 600 : 400 }}>
+            {l.text}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
 export default function Hero() {
   return (
-    <section style={{ 
-      minHeight: '80vh', 
-      display: 'flex', 
-      alignItems: 'center', 
+    <section style={{
+      minHeight: '88vh',
+      display: 'flex',
+      alignItems: 'center',
       justifyContent: 'space-between',
-      gap: '40px',
-      position: 'relative'
+      gap: '60px',
+      paddingTop: '60px',
+      paddingBottom: '60px',
     }}>
-      <div style={{ flex: '1', zIndex: 10 }}>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div style={{ 
-            display: 'inline-block',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            background: 'var(--icon-bg)',
-            color: 'var(--accent-purple-light)',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            marginBottom: '20px',
-            border: '1px solid var(--card-border)'
-          }}>
-            v1.0 is Live
-          </div>
-          <h1 style={{ fontSize: '4rem', lineHeight: '1.1', marginBottom: '24px' }}>
-            Transform <span className="text-gradient">log chaos</span> into clarity with AI.
-          </h1>
-          <p style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '40px', lineHeight: '1.6', maxWidth: '600px' }}>
-            Observo automatically clusters similar logs, detects anomalies, and uses Agentic AI to explain what's wrong and exactly how to fix it within seconds.
-          </p>
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <a href="#install" className="primary-button">
-              Get Started <ArrowRight size={20} />
-            </a>
-            <Link to="/commands" className="secondary-button" style={{ borderColor: 'var(--accent-purple-light)' }}>
-              <Command size={20} color="var(--accent-purple-light)" /> CLI Commands
-            </Link>
-            <a href="https://github.com/PranavJa1n/Observo" target="_blank" rel="noopener noreferrer" className="secondary-button">
-              <Terminal size={20} /> View GitHub
-            </a>
-          </div>
-        </motion.div>
-      </div>
-      
-      <div style={{ flex: '1', height: '500px', width: '100%', position: 'relative' }}>
-        <Canvas camera={{ position: [0, 0, 8], fov: 50 }}>
-          <ambientLight intensity={0.2} />
-          <pointLight position={[10, 10, 10]} intensity={1.5} color="#ffffff" />
-          <pointLight position={[-10, -10, -10]} intensity={1} color="#667eea" />
-          
-          <Float floatIntensity={1} speed={1} rotationIntensity={0.5}>
-            <React.Suspense fallback={null}>
-              <ClusteringEngine />
-            </React.Suspense>
-          </Float>
-        </Canvas>
-      </div>
+      {/* Left copy */}
+      <motion.div
+        style={{ flex: '1' }}
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div style={{
+          display: 'inline-block',
+          padding: '5px 14px',
+          borderRadius: '20px',
+          background: 'var(--icon-bg)',
+          color: 'var(--text-muted)',
+          fontWeight: 500,
+          fontSize: '0.85rem',
+          marginBottom: '24px',
+          border: '1px solid var(--card-border)',
+          letterSpacing: '0.02em',
+        }}>
+          v1.0 — Open Source
+        </div>
+
+        <h1 style={{ fontSize: '3.8rem', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-0.03em' }}>
+          AI that reads your<br />logs so <span className="text-gradient">you don't have to.</span>
+        </h1>
+
+        <p style={{ fontSize: '1.15rem', color: 'var(--text-muted)', marginBottom: '40px', lineHeight: '1.7', maxWidth: '480px' }}>
+          Observo watches your log files, clusters similar events with HDBSCAN, and uses an Agentic AI pipeline to explain anomalies and generate exact fix steps — in seconds.
+        </p>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <a href="#install" className="primary-button">
+            Get Started <ArrowRight size={18} />
+          </a>
+          <Link to="/commands" className="secondary-button">
+            <Command size={18} /> Commands
+          </Link>
+          <a href="https://github.com/PranavJa1n/Observo" target="_blank" rel="noopener noreferrer" className="secondary-button">
+            <Terminal size={18} /> GitHub
+          </a>
+        </div>
+
+        {/* Stats row */}
+        <div style={{ display: 'flex', gap: '40px', marginTop: '56px' }}>
+          {[['< 1s', 'Analysis latency'], ['HDBSCAN', 'Clustering algorithm'], ['Local', 'Privacy first']].map(([val, label]) => (
+            <div key={label}>
+              <div style={{ fontSize: '1.3rem', fontWeight: 700, letterSpacing: '-0.02em' }}>{val}</div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '2px' }}>{label}</div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Right terminal */}
+      <motion.div
+        style={{ flex: '1', display: 'flex', justifyContent: 'flex-end' }}
+        initial={{ opacity: 0, x: 30 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.7, delay: 0.2 }}
+      >
+        <AnimatedTerminal />
+      </motion.div>
     </section>
   );
 }
