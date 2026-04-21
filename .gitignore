@@ -2,3 +2,6 @@ venv/
 .env
 coverage
 dataset/
+dataset/
+__pycache__/
+coverage
