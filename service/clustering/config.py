@@ -46,13 +46,13 @@ class ClusteringConfig:
     )
     feature: FeatureConfig = field(default_factory=FeatureConfig)
 
-    # Dataset loading — max lines read per file (single-pass cap, no double-read)
+    # Dataset loading — max lines read per file
     max_lines_per_file: int = field(
-        default_factory=lambda: int(os.getenv("CLUSTER_LINES_PER_FILE", 20000))
+        default_factory=lambda: int(os.getenv("CLUSTER_LINES_PER_FILE", 1000))
     )
-    # Optional hard cap on total logs loaded across all files (0 = no cap)
+    # Hard cap on total logs loaded across all files
     training_sample_size: Optional[int] = field(
-        default_factory=lambda: _int_env("CLUSTER_TRAINING_SAMPLE_SIZE", None)
+        default_factory=lambda: _int_env("CLUSTER_TRAINING_SAMPLE_SIZE", 10000)
     )
 
     def ensure_dirs(self) -> None:

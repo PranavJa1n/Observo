@@ -60,7 +60,12 @@ _UUID_RE = re.compile(
 _HEX_RE = re.compile(r"0x[0-9a-f]+|\b[0-9a-f]{6,}\b", re.IGNORECASE)
 
 # File / directory paths: /var/log/app.log  or  C:\Windows\System32\foo.dll
-_PATH_RE = re.compile(r"(?:[A-Za-z]:)?(?:[/\\][\w.\-]+){2,}")
+# Two simple non-overlapping alternates to avoid catastrophic backtracking:
+#   1. Windows:  C:\something\...  (must start with drive letter + colon + backslash)
+#   2. Unix:     /two/or/more/segments (must start with / and have at least 2 segments)
+_PATH_RE = re.compile(
+    r"[A-Za-z]:\\[^\s]+|(?:/[\w.~-]+){2,}"
+)
 
 # Java fully-qualified class names: org.apache.hadoop.hdfs.DataNode
 # → keep only the last segment (the actual class name)
