@@ -6,6 +6,10 @@ Observo is a CLI tool that transforms chaotic log streams into clear, actionable
 
 ---
 
+🌐 **Landing Page:** [https://pranavja1n.github.io/Observo](https://pranavja1n.github.io/Observo)
+
+---
+
 ## The Problem
 
 Modern applications generate massive amounts of logs:
