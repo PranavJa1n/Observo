@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import Hero from './components/Hero';
 import Features from './components/Features';
 import HowToInstall from './components/HowToInstall';
@@ -28,7 +28,7 @@ function App() {
   }, [isLightMode]);
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div style={{ minHeight: '100vh', position: 'relative', display: 'flex', flexDirection: 'column' }}>
         {/* Subtle grid background */}
         <div style={{
@@ -39,10 +39,10 @@ function App() {
           backgroundSize: '48px 48px',
         }} />
 
-        <header style={{ 
-          padding: '24px 40px', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <header style={{
+          padding: '24px 40px',
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           position: 'relative',
           zIndex: 100,
@@ -53,12 +53,12 @@ function App() {
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '12px', textDecoration: 'none', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '1.4rem' }}>
             <Database color="var(--accent-purple-light)" /> Observo
           </Link>
-          
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <Link to="/commands" style={{ textDecoration: 'none', color: 'var(--text-main)', fontWeight: 500 }}>
               Commands
             </Link>
-            <button 
+            <button
               onClick={() => setIsLightMode(!isLightMode)}
               style={{
                 background: 'var(--code-bg)',
@@ -86,8 +86,8 @@ function App() {
           </Routes>
         </div>
 
-        <footer style={{ 
-          padding: '80px 40px', 
+        <footer style={{
+          padding: '80px 40px',
           background: 'var(--icon-bg)',
           borderTop: '1px solid var(--card-border)',
           marginTop: '60px'
@@ -101,7 +101,7 @@ function App() {
                 The open-source AI log analysis engine. Turn your server errors into plain english fixes in milliseconds.
               </p>
             </div>
-            
+
             <div>
               <h4 style={{ marginBottom: '20px', color: 'var(--text-main)' }}>Resources</h4>
               <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -123,13 +123,13 @@ function App() {
               </div>
             </div>
           </div>
-          
+
           <div style={{ textAlign: 'center', marginTop: '60px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             <p>© 2026 Observo. Built by Pranav Jain & Madhav Garg.</p>
           </div>
         </footer>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
