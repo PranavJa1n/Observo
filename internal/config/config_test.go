@@ -35,7 +35,7 @@ func TestSave(t *testing.T) {
 		Source:     "local",
 		Path:       tmpDir, // Use tmpDir as it exists
 		AlertEmail: "test@example.com",
-		APIKey:     "test-api-key-123",
+		AIModel:     "test-api-key-123",
 	}
 
 	// Override config path for this test
@@ -76,8 +76,8 @@ func TestSave(t *testing.T) {
 	if savedCfg.AlertEmail != cfg.AlertEmail {
 		t.Errorf("AlertEmail: expected %s, got %s", cfg.AlertEmail, savedCfg.AlertEmail)
 	}
-	if savedCfg.APIKey != cfg.APIKey {
-		t.Errorf("APIKey: expected %s, got %s", cfg.APIKey, savedCfg.APIKey)
+	if savedCfg.AIModel != cfg.AIModel {
+		t.Errorf("AIModel: expected %s, got %s", cfg.AIModel, savedCfg.AIModel)
 	}
 }
 
@@ -86,7 +86,7 @@ func TestValidate_EmptyPath(t *testing.T) {
 		Source:     "local",
 		Path:       "",
 		AlertEmail: "test@example.com",
-		APIKey:     "test-key",
+		AIModel:     "test-key",
 	}
 
 	err := cfg.Validate()
@@ -100,7 +100,7 @@ func TestValidate_NonExistentPath(t *testing.T) {
 		Source:     "local",
 		Path:       "/nonexistent/path/to/logs",
 		AlertEmail: "test@example.com",
-		APIKey:     "test-key",
+		AIModel:     "test-key",
 	}
 
 	err := cfg.Validate()
@@ -109,14 +109,14 @@ func TestValidate_NonExistentPath(t *testing.T) {
 	}
 }
 
-func TestValidate_EmptyAPIKey(t *testing.T) {
+func TestValidate_EmptyAIModel(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &Config{
 		Source:     "local",
 		Path:       tmpDir,
 		AlertEmail: "test@example.com",
-		APIKey:     "",
+		AIModel:     "",
 	}
 
 	err := cfg.Validate()
@@ -132,7 +132,7 @@ func TestValidate_InvalidEmail(t *testing.T) {
 		Source:     "local",
 		Path:       tmpDir,
 		AlertEmail: "invalid-email",
-		APIKey:     "test-key",
+		AIModel:     "test-key",
 	}
 
 	err := cfg.Validate()
@@ -148,7 +148,7 @@ func TestValidate_EmptyEmail(t *testing.T) {
 		Source:     "local",
 		Path:       tmpDir,
 		AlertEmail: "", // Empty email should be allowed (optional)
-		APIKey:     "test-key",
+		AIModel:     "test-key",
 	}
 
 	err := cfg.Validate()
@@ -164,7 +164,7 @@ func TestValidate_ValidConfig(t *testing.T) {
 		Source:     "local",
 		Path:       tmpDir,
 		AlertEmail: "valid@example.com",
-		APIKey:     "test-api-key-12345",
+		AIModel:     "test-api-key-12345",
 	}
 
 	err := cfg.Validate()
@@ -180,7 +180,7 @@ func TestValidate_ValidConfigWithoutEmail(t *testing.T) {
 		Source:     "local",
 		Path:       tmpDir,
 		AlertEmail: "",
-		APIKey:     "test-api-key",
+		AIModel:     "test-api-key",
 	}
 
 	err := cfg.Validate()
@@ -194,7 +194,7 @@ func TestConfigJSONMarshaling(t *testing.T) {
 		Source:     "local",
 		Path:       "/var/log/app",
 		AlertEmail: "admin@example.com",
-		APIKey:     "sk-test-12345",
+		AIModel:     "sk-test-12345",
 	}
 
 	// Marshal to JSON
@@ -220,8 +220,8 @@ func TestConfigJSONMarshaling(t *testing.T) {
 	if cfg2.AlertEmail != cfg.AlertEmail {
 		t.Errorf("AlertEmail mismatch: expected %s, got %s", cfg.AlertEmail, cfg2.AlertEmail)
 	}
-	if cfg2.APIKey != cfg.APIKey {
-		t.Errorf("APIKey mismatch: expected %s, got %s", cfg.APIKey, cfg2.APIKey)
+	if cfg2.AIModel != cfg.AIModel {
+		t.Errorf("AIModel mismatch: expected %s, got %s", cfg.AIModel, cfg2.AIModel)
 	}
 }
 
@@ -236,7 +236,7 @@ func TestSaveAndLoad_Integration(t *testing.T) {
 		Source:     "local",
 		Path:       tmpDir,
 		AlertEmail: "integration@test.com",
-		APIKey:     "integration-test-key",
+		AIModel:     "integration-test-key",
 	}
 
 	// Save to temp location
@@ -272,8 +272,8 @@ func TestSaveAndLoad_Integration(t *testing.T) {
 	if loadedCfg.AlertEmail != originalCfg.AlertEmail {
 		t.Errorf("AlertEmail mismatch: expected %s, got %s", originalCfg.AlertEmail, loadedCfg.AlertEmail)
 	}
-	if loadedCfg.APIKey != originalCfg.APIKey {
-		t.Errorf("APIKey mismatch: expected %s, got %s", originalCfg.APIKey, loadedCfg.APIKey)
+	if loadedCfg.AIModel != originalCfg.AIModel {
+		t.Errorf("AIModel mismatch: expected %s, got %s", originalCfg.AIModel, loadedCfg.AIModel)
 	}
 }
 
@@ -303,7 +303,7 @@ func TestValidate_EmailEdgeCases(t *testing.T) {
 				Source:     "local",
 				Path:       tmpDir,
 				AlertEmail: tc.email,
-				APIKey:     "test-key",
+				AIModel:     "test-key",
 			}
 
 			err := cfg.Validate()

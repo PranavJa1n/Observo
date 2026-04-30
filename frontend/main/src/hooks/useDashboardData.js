@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function useDashboardData() {
   const [stats, setStats] = useState({
@@ -40,9 +40,32 @@ export function useDashboardData() {
 
   useEffect(() => {
     fetchData();
-    // Poll every 10 seconds
+    // Poll every 10 seconds for backend updates
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Live timer for smooth UI
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStats(prev => {
+        if (!prev.running) return prev;
+        
+        const newSecs = prev.uptime_seconds + 1;
+        const h = Math.floor(newSecs / 3600);
+        const m = Math.floor((newSecs % 3600) / 60);
+        const s = newSecs % 60;
+        
+        let humanStr = "";
+        if (h > 0) humanStr = `${h}h ${m}min ${s}s`;
+        else if (m > 0) humanStr = `${m}min ${s}s`;
+        else humanStr = `${s}s`;
+
+        return { ...prev, uptime_seconds: newSecs, uptime_human: humanStr };
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
   }, []);
 
   return { stats, incidents, loading, error };
