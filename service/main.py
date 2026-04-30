@@ -262,7 +262,7 @@ def process(request: BatchRequest):
                 logger.info("AI analysis complete: severity=%s", result.severity)
                 try:
                     with open("ai_results.json", "a") as f:
-                        f.write(ai_result.json() + "\n")
+                        f.write(ai_result.model_dump_json() + "\n")
                 except Exception as e:
                     logger.error("Failed to write to ai_results.json: %s", e)
             except Exception as exc:
