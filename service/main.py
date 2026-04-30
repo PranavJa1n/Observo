@@ -26,6 +26,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import dotenv
+dotenv.load_dotenv()
 
 # Ensure the project root (d:\Observo) is on sys.path so that
 # `from service.clustering...` and `from service.agentic...` resolve
@@ -79,37 +81,43 @@ def _load_pipeline():
 # ---------------------------------------------------------------------------
 _agent = None
 
-def _load_agent():
-    """Lazily load the AI agent based on the AI_PROVIDER environment variable."""
-    global _agent
-    provider = os.getenv("AI_PROVIDER", "claude").lower()
+def _get_agent(model_name: str = "gemini"):
+    """Lazily load the AI agent based on the requested model name."""
+    model_name = model_name.lower()
+    
+    # Map user input to provider and class
+    if model_name in ["sonnet", "claude"]:
+        provider = "claude"
+    elif model_name in ["chatgpt", "openai", "gpt-4"]:
+        provider = "openai"
+    elif model_name in ["perplexity"]:
+        provider = "perplexity"
+    else:
+        provider = "gemini"
+        
     provider_map = {
         "claude":    ("service.agentic.claude_agentic",    "LogAnalysisAgent", "CLAUDE_API_KEY"),
         "gemini":    ("service.agentic.gemini_agentic",    "LogAnalysisAgent", "GEMINI_API_KEY"),
         "openai":    ("service.agentic.openai_agentic",    "LogAnalysisAgent", "OPENAI_API_KEY"),
         "perplexity":("service.agentic.perplexity_agentic","LogAnalysisAgent", "PERPLEXITY_API_KEY"),
     }
+    
     if provider not in provider_map:
-        logger.warning("Unknown AI_PROVIDER '%s'. Agent disabled.", provider)
-        return
+        return None
 
     module_path, class_name, env_key = provider_map[provider]
-    api_key = os.getenv(env_key) or os.getenv("ANTHROPIC_API_KEY")  # Go passes ANTHROPIC_API_KEY
+    api_key = os.getenv(env_key)
     if not api_key:
-        logger.warning(
-            "No API key found for provider '%s' (expected %s). Agent disabled.",
-            provider, env_key
-        )
-        return
+        logger.warning("No %s found. Agent disabled.", env_key)
+        return None
 
     try:
         module = importlib.import_module(module_path)
         agent_cls = getattr(module, class_name)
-        _agent = agent_cls(api_key=api_key)
-        logger.info("AI agent loaded: provider=%s", provider)
+        return agent_cls(api_key=api_key)
     except Exception as exc:
-        logger.error("Failed to load AI agent (%s): %s", provider, exc)
-        _agent = None
+        logger.error("Failed to load agent for %s: %s", provider, exc)
+        return None
 
 # ---------------------------------------------------------------------------
 # App lifecycle
@@ -118,7 +126,6 @@ def _load_agent():
 async def lifespan(app: FastAPI):
     logger.info("Observo Python Service starting on port 5000...")
     _load_pipeline()
-    _load_agent()
     logger.info("Service ready.")
     yield
     logger.info("Observo Python Service shutting down.")
@@ -144,6 +151,7 @@ app.add_middleware(
 class BatchRequest(BaseModel):
     """Payload sent by the Go CLI's SendBatch()."""
     logs: List[str]
+    model: Optional[str] = "gemini"
 
 class AnalysisResult(BaseModel):
     root_cause: str
@@ -171,6 +179,7 @@ class DirectAnalyzeRequest(BaseModel):
     logs: List[str]
     context: Optional[str] = None
     diagnostics: Optional[List[str]] = None
+    model: Optional[str] = "gemini"
 
 # ---------------------------------------------------------------------------
 # Endpoints
@@ -236,21 +245,28 @@ def process(request: BatchRequest):
     # --- 2. AI analysis on bad logs ---
     ai_result: Optional[AnalysisResult] = None
 
-    if bad_logs and _agent is not None:
-        try:
-            bad_text = "\n".join(bad_logs[-200:])  # cap at 200 lines to stay within token limits
-            result = _agent.analyze_logs(logs=bad_text)
-            ai_result = AnalysisResult(
-                root_cause=result.root_cause,
-                severity=result.severity,
-                recommendations=result.recommendations,
-                affected_components=result.affected_components,
-                timestamp=result.timestamp,
-                summary=result.raw_analysis,
-            )
-            logger.info("AI analysis complete: severity=%s", result.severity)
-        except Exception as exc:
-            logger.error("AI agent failed: %s", exc)
+    if bad_logs:
+        agent = _get_agent(request.model)
+        if agent is not None:
+            try:
+                bad_text = "\n".join(bad_logs[-200:])  # cap at 200 lines to stay within token limits
+                result = agent.analyze_logs(logs=bad_text)
+                ai_result = AnalysisResult(
+                    root_cause=result.root_cause,
+                    severity=result.severity,
+                    recommendations=result.recommendations,
+                    affected_components=result.affected_components,
+                    timestamp=result.timestamp,
+                    summary=result.raw_analysis,
+                )
+                logger.info("AI analysis complete: severity=%s", result.severity)
+                try:
+                    with open("ai_results.json", "a") as f:
+                        f.write(ai_result.json() + "\n")
+                except Exception as e:
+                    logger.error("Failed to write to ai_results.json: %s", e)
+            except Exception as exc:
+                logger.error("AI agent failed: %s", exc)
 
     return ProcessResponse(
         status="ok",
@@ -277,7 +293,7 @@ def status():
     return StatusResponse(
         running=True,
         pipeline_loaded=_pipeline is not None,
-        agent_loaded=_agent is not None,
+        agent_loaded=True, # Agent is loaded lazily per request
         pipeline_stats=stats,
     )
 
@@ -288,13 +304,14 @@ def analyze(request: DirectAnalyzeRequest):
     Direct AI analysis endpoint — bypasses clustering.
     Useful for testing the AI agent independently.
     """
-    if _agent is None:
+    agent = _get_agent(request.model)
+    if agent is None:
         raise HTTPException(
             status_code=503,
-            detail="AI agent not loaded. Check AI_PROVIDER and API key env vars.",
+            detail=f"AI agent not loaded. Check the API key env var for the {request.model} model.",
         )
     try:
-        result = _agent.analyze_logs(
+        result = agent.analyze_logs(
             logs="\n".join(request.logs),
             context=request.context,
             diagnostics=request.diagnostics,

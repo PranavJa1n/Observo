@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -19,6 +18,10 @@ import (
 	"github.com/PranavJa1n/Observo/internal/watcher"
 	"github.com/spf13/cobra"
 )
+
+// HARDCODED DEPLOYMENT URL
+// Change this to point to your deployed Python Service
+const PythonServiceURL = "http://localhost:5000"
 
 func main() {
 
@@ -77,15 +80,18 @@ var initCmd = &cobra.Command{
 		email, _ := reader.ReadString('\n')
 		email = strings.TrimSpace(email)
 
-		fmt.Print("Enter Google API key: ") // asking for the API key
-		apiKey, _ := reader.ReadString('\n')
-		apiKey = strings.TrimSpace(apiKey)
+		fmt.Print("Select AI Model (e.g. sonnet, chatgpt, gemini) [default: gemini]: ") // asking for the AI model
+		aiModel, _ := reader.ReadString('\n')
+		aiModel = strings.TrimSpace(aiModel)
+		if aiModel == "" {
+			aiModel = "gemini"
+		}
 
 		cfg := &config.Config{ // creating the config
 			Source:     "local",
 			Path:       logPath,
 			AlertEmail: email,
-			APIKey:     apiKey,
+			AIModel:    aiModel,
 		}
 
 		if err := cfg.Validate(); err != nil { // validating the given data
@@ -144,7 +150,7 @@ var startCmd = &cobra.Command{
 			fmt.Println("================================")
 			fmt.Printf("📁 Watching: %s\n", cfg.Path)
 			fmt.Println("🌐 Dashboard: http://localhost:6969")
-			fmt.Println("🐍 Python Service: http://localhost:5000")
+			fmt.Printf("🐍 Python Service: %s\n", PythonServiceURL)
 			fmt.Print("\nPress Ctrl+C to stop\n\n")
 		}
 
@@ -159,34 +165,10 @@ var startCmd = &cobra.Command{
 // run is the main application loop
 // This is where all the magic happens!
 func run(cfg *config.Config) error {
-	// 1. Start Python service
-	fmt.Println("🐍 Starting Python service...")
-	// ensure that python command will work on windows as well as linux
-	pythonBin := "python"
-	if _, err := exec.LookPath("python3"); err == nil {
-		pythonBin = "python3"
-	}
-	// Resolve path to Python service — use OBSERVO_HOME if set, else fall back to ./service/main.py
-	observoHome := os.Getenv("OBSERVO_HOME")
-	pythonServicePath := "service/main.py"
-	if observoHome != "" {
-		pythonServicePath = observoHome + "/service/main.py"
-	}
-	pythonCmd := exec.Command(pythonBin, pythonServicePath)
-
-	pythonCmd.Env = append(os.Environ(), "ANTHROPIC_API_KEY="+cfg.APIKey)
-	pythonCmd.Stdout = os.Stdout
-	pythonCmd.Stderr = os.Stderr
-
-	if err := pythonCmd.Start(); err != nil {
-		return fmt.Errorf("failed to start Python service: %v", err)
-	}
-	defer pythonCmd.Process.Kill() // Stop Python when Go exits
-
 	// Wait for Python to be ready
-	pythonClient := client.New("http://localhost:5000")
-	if err := pythonClient.WaitForPython(30 * time.Second); err != nil {
-		return err
+	pythonClient := client.New(PythonServiceURL, cfg.AIModel)
+	if err := pythonClient.WaitForPython(5 * time.Second); err != nil {
+		fmt.Printf("⚠️ Warning: Python service not ready at %s. Ensure it is deployed and accessible.\n", PythonServiceURL)
 	}
 
 	// 2. Initialize database
@@ -220,8 +202,54 @@ func run(cfg *config.Config) error {
 	// (Read batches from buffer, send to Python)
 	go func() {
 		for batch := range logBuffer.SendChan() {
-			if err := pythonClient.SendBatch(batch); err != nil {
+			resp, err := pythonClient.SendBatch(batch)
+			if err != nil {
 				fmt.Printf("⚠️  Failed to send batch: %v\n", err)
+				continue
+			}
+
+			if resp != nil && resp.BadCount > 0 {
+				var summary, rootCause, severity, suggestions, problem string
+
+				if resp.Analysis != nil {
+					summary = resp.Analysis.Summary
+					rootCause = resp.Analysis.RootCause
+					severity = resp.Analysis.Severity
+					suggestions = strings.Join(resp.Analysis.Recommendations, "\n")
+					
+					// Make the problem title more descriptive based on the anomaly
+					if len(resp.Analysis.AffectedComponents) > 0 && resp.Analysis.AffectedComponents[0] != "" {
+						problem = fmt.Sprintf("%s Issue Detected", resp.Analysis.AffectedComponents[0])
+					} else if rootCause != "" {
+						// Extract first few words of the root cause
+						words := strings.Fields(rootCause)
+						if len(words) > 8 {
+							problem = strings.Join(words[:8], " ") + "..."
+						} else {
+							problem = rootCause
+						}
+					} else {
+						problem = "Unknown Log Anomaly"
+					}
+				} else {
+					summary = fmt.Sprintf("Clustering detected %d anomalous logs, but AI analysis failed or was disabled.", resp.BadCount)
+					rootCause = "Unknown (AI analysis unavailable)"
+					severity = "warning"
+					suggestions = "Please check your AI provider configuration and API key."
+					problem = "Unanalyzed Log Anomaly"
+				}
+
+				// Create an incident
+				incident := &models.Incident{
+					Timestamp:   time.Now(),
+					Problem:     problem,
+					AISummary:   summary,
+					RootCause:   rootCause,
+					Severity:    severity,
+					Suggestions: suggestions,
+				}
+				db.Create(incident)
+				fmt.Printf("🚨 New incident saved to dashboard! Severity: %s\n", severity)
 			}
 		}
 	}()
@@ -285,7 +313,7 @@ var statusCmd = &cobra.Command{
 		}
 
 		// If daemon not running, check if foreground process is running via API
-		err = client.New("http://localhost:6969").HealthCheck()
+		err = client.New("http://localhost:6969", "").HealthCheck()
 		if err != nil {
 			fmt.Println("❌ Observo is not running")
 			fmt.Println("💡 Run 'observo start' or 'observo start --daemon' to start monitoring")
@@ -319,7 +347,7 @@ var configCmd = &cobra.Command{
 		source, _ := cmd.Flags().GetString("source")
 		path, _ := cmd.Flags().GetString("path")
 		email, _ := cmd.Flags().GetString("alert-email")
-		apiKey, _ := cmd.Flags().GetString("api-key")
+		aiModel, _ := cmd.Flags().GetString("ai-model")
 
 		// Update fields if flags were provided
 		changed := false
@@ -335,8 +363,8 @@ var configCmd = &cobra.Command{
 			cfg.AlertEmail = email
 			changed = true
 		}
-		if apiKey != "" {
-			cfg.APIKey = apiKey
+		if aiModel != "" {
+			cfg.AIModel = aiModel
 			changed = true
 		}
 
@@ -345,7 +373,7 @@ var configCmd = &cobra.Command{
 			fmt.Println("  --source local")
 			fmt.Println("  --path /path/to/logs")
 			fmt.Println("  --alert-email user@email.com")
-			fmt.Println("  --api-key sk-ant-...")
+			fmt.Println("  --ai-model gemini")
 			return
 		}
 
@@ -375,5 +403,5 @@ func init() {
 	configCmd.Flags().String("source", "", "Set source type (local)")
 	configCmd.Flags().String("path", "", "Set log file/directory path")
 	configCmd.Flags().String("alert-email", "", "Set alert email address")
-	configCmd.Flags().String("api-key", "", "Set Anthropic API key")
+	configCmd.Flags().String("ai-model", "", "Set AI model to use (sonnet, chatgpt, gemini)")
 }

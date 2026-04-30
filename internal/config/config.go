@@ -12,7 +12,7 @@ type Config struct { // holds all the config of the observo
 	Source     string `json:"source"` // Always "local" for now
 	Path       string `json:"path"`   // directory from where we have to observe the logs
 	AlertEmail string `json:"alert_email"`
-	APIKey     string `json:"api_key"`
+	AIModel    string `json:"ai_model"`    // The AI model to use (e.g., gemini-1.5-flash)
 }
 
 func Load() (*Config, error) {
@@ -67,8 +67,8 @@ func (c *Config) Validate() error { // fuction checks if the values in the confi
 		return fmt.Errorf("log path does not exist: %s", c.Path)
 	}
 
-	if c.APIKey == "" {
-		return errors.New("API key cannot be empty") // if api is empty or not
+	if c.AIModel == "" {
+		return errors.New("AI model cannot be empty")
 	}
 
 	if c.AlertEmail != "" && !strings.Contains(c.AlertEmail, "@") { // email is optional but still giving it a basic check for the @ sign
