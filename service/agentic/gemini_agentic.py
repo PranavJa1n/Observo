@@ -40,12 +40,13 @@ class LogAnalysisAgent:
     Uses LangGraph and LangChain with Google Gemini for intelligent analysis.
     """
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-3-flash-preview"):
         """
         Initialize the Log Analysis Agent
         
         Args:
             api_key: Google Gemini API key. If not provided, reads from GEMINI_API_KEY env variable
+            model: The Gemini model to use
         """
         self.api_key = api_key or os.getenv('GEMINI_API_KEY')
         if not self.api_key:
@@ -53,7 +54,7 @@ class LogAnalysisAgent:
         
         # Initialize LangChain LLM
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-pro",
+            model=model,
             google_api_key=self.api_key,
             temperature=0.3
         )
@@ -134,6 +135,17 @@ Return only valid JSON."""
             # Generate analysis
             response = self.llm.invoke(prompt)
             analysis_text = response.content
+            
+            if isinstance(analysis_text, list):
+                parts = []
+                for item in analysis_text:
+                    if isinstance(item, str):
+                        parts.append(item)
+                    elif isinstance(item, dict) and "text" in item:
+                        parts.append(item["text"])
+                    else:
+                        parts.append(str(item))
+                analysis_text = "".join(parts)
             
             # Parse JSON response
             try:

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/PranavJa1n/Observo/internal/models"
@@ -32,7 +34,61 @@ func (s *Server) setupRoutes() { // function configure HTTP endpoints
 
 	s.router.HandleFunc("/api/incidents", s.getIncidents).Methods("GET")
 	s.router.HandleFunc("/api/stats", s.getStats).Methods("GET")
-	s.router.HandleFunc("/", s.serveDashboard).Methods("GET") // going to serve the REACT frontend (for now it is just serving basic html)
+
+	// Serve the React dashboard build files
+	distPath := s.getDashboardPath()
+	if distPath != "" {
+		// Serve static assets (JS, CSS, images) from the dist folder
+		fs := http.FileServer(http.Dir(distPath))
+		// Catch-all: serve index.html for any non-API route (React SPA routing)
+		s.router.PathPrefix("/").Handler(spaHandler{staticHandler: fs, distPath: distPath})
+	} else {
+		// Fallback: serve the built-in HTML dashboard if no React build is found
+		s.router.HandleFunc("/", s.serveFallbackDashboard).Methods("GET")
+	}
+}
+
+// getDashboardPath finds the React dashboard build directory
+func (s *Server) getDashboardPath() string {
+	// Check relative to OBSERVO_HOME first
+	observoHome := os.Getenv("OBSERVO_HOME")
+	if observoHome != "" {
+		distPath := filepath.Join(observoHome, "frontend", "main", "dist")
+		if _, err := os.Stat(distPath); err == nil {
+			fmt.Printf("📊 Serving React dashboard from: %s\n", distPath)
+			return distPath
+		}
+	}
+
+	// Check relative to current working directory
+	distPath := filepath.Join("frontend", "main", "dist")
+	if _, err := os.Stat(distPath); err == nil {
+		fmt.Printf("📊 Serving React dashboard from: %s\n", distPath)
+		return distPath
+	}
+
+	fmt.Println("⚠️  React dashboard build not found. Run: cd frontend/main && npm run build")
+	fmt.Println("   Serving fallback dashboard instead.")
+	return ""
+}
+
+// spaHandler serves static files, falling back to index.html for SPA routes
+type spaHandler struct {
+	staticHandler http.Handler
+	distPath      string
+}
+
+func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Check if the requested file exists in the dist folder
+	path := filepath.Join(h.distPath, r.URL.Path)
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		// File doesn't exist — serve index.html (let React Router handle it)
+		http.ServeFile(w, r, filepath.Join(h.distPath, "index.html"))
+		return
+	}
+	// File exists — serve it directly (JS, CSS, images, etc.)
+	h.staticHandler.ServeHTTP(w, r)
 }
 
 func (s *Server) Start() error { // function starts the HTTP server
@@ -68,19 +124,32 @@ func (s *Server) getStats(w http.ResponseWriter, r *http.Request) { // function 
 	s.db.Model(&models.Incident{}).Count(&count) // count the number of the incident
 
 	uptime := time.Since(s.startTime) // getting the uptime
+	
+	hours := int(uptime.Hours())
+	minutes := int(uptime.Minutes()) % 60
+	seconds := int(uptime.Seconds()) % 60
+
+	var uptimeHuman string
+	if hours > 0 {
+		uptimeHuman = fmt.Sprintf("%dh %dmin %ds", hours, minutes, seconds)
+	} else if minutes > 0 {
+		uptimeHuman = fmt.Sprintf("%dmin %ds", minutes, seconds)
+	} else {
+		uptimeHuman = fmt.Sprintf("%ds", seconds)
+	}
 
 	stats := map[string]interface{}{
 		"running":         true,
 		"incidents_count": count,
 		"uptime_seconds":  int(uptime.Seconds()),
-		"uptime_human":    uptime.String(),
+		"uptime_human":    uptimeHuman,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
 }
 
-func (s *Server) serveDashboard(w http.ResponseWriter, r *http.Request) { // Simple HTML page that is going to be served from now
+func (s *Server) serveFallbackDashboard(w http.ResponseWriter, r *http.Request) { // Fallback HTML page when React build is missing
 	html := `<!DOCTYPE html>
 <html>
 <head>
@@ -88,108 +157,70 @@ func (s *Server) serveDashboard(w http.ResponseWriter, r *http.Request) { // Sim
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 50px auto;
+            max-width: 800px;
+            margin: 80px auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: #0a0a0a;
+            color: #e2e8f0;
         }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+        .card {
+            background: #111;
             padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
+            border-radius: 12px;
+            border: 1px solid #222;
+            margin-bottom: 20px;
         }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-            color: #667eea;
-        }
-        .incidents {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .incident {
-            border-left: 4px solid #667eea;
-            padding: 15px;
-            margin: 10px 0;
-            background: #f9f9f9;
-        }
-        .incident-time {
-            color: #999;
-            font-size: 0.9em;
-        }
+        h1 { color: #f59e0b; }
+        .stat { font-size: 2em; font-weight: bold; color: #22c55e; }
+        .hint { color: #666; margin-top: 30px; font-size: 0.9em; }
+        code { background: #1a1a1a; padding: 4px 8px; border-radius: 4px; color: #f59e0b; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🔍 Observo Dashboard</h1>
+    <div class="card">
+        <h1>Observo Dashboard</h1>
         <p>AI-Powered Log Analysis</p>
     </div>
-
-    <div class="stats" id="stats">
-        <div class="stat-card">
-            <div class="stat-value" id="incidentCount">...</div>
-            <div>Total Incidents</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-value" id="uptime">...</div>
-            <div>Uptime</div>
-        </div>
+    <div class="card">
+        <div class="stat" id="incidentCount">...</div>
+        <div>Total Incidents</div>
     </div>
-
-    <div class="incidents">
-        <h2>Recent Incidents</h2>
-        <div id="incidentsList">Loading...</div>
+    <div class="card">
+        <div class="stat" id="uptime">...</div>
+        <div>Uptime</div>
     </div>
-
+    <div class="card" id="incidentsList">Loading...</div>
+    <p class="hint">
+        For the full React dashboard, run:<br>
+        <code>cd frontend/main && npm install && npm run build</code><br>
+        then restart Observo.
+    </p>
     <script>
-        // Fetch stats
         fetch('/api/stats')
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 document.getElementById('incidentCount').textContent = data.incidents_count;
                 document.getElementById('uptime').textContent = data.uptime_human;
             });
-
-        // Fetch incidents
         fetch('/api/incidents')
             .then(function(r) { return r.json(); })
             .then(function(incidents) {
                 var list = document.getElementById('incidentsList');
-                if (incidents.length === 0) {
+                if (!incidents || incidents.length === 0) {
                     list.innerHTML = '<p>No incidents detected yet. Observo is monitoring your logs...</p>';
                     return;
                 }
-                
                 var html = '';
                 for (var i = 0; i < incidents.length; i++) {
                     var inc = incidents[i];
-                    html += '<div class="incident">';
+                    html += '<div style="border-left:3px solid #f59e0b; padding:12px; margin:8px 0; background:#1a1a1a; border-radius:6px;">';
                     html += '<h3>' + (inc.problem || 'Anomaly Detected') + '</h3>';
-                    html += '<p><strong>Summary:</strong> ' + (inc.ai_summary || 'Processing...') + '</p>';
-                    html += '<p><strong>Root Cause:</strong> ' + (inc.root_cause || 'Analyzing...') + '</p>';
-                    html += '<p class="incident-time">' + new Date(inc.created_at).toLocaleString() + '</p>';
+                    html += '<p>' + (inc.ai_summary || 'Processing...') + '</p>';
+                    html += '<p style="color:#666">' + new Date(inc.created_at).toLocaleString() + '</p>';
                     html += '</div>';
                 }
                 list.innerHTML = html;
             });
-
-        // Auto-refresh every 10 seconds
         setInterval(function() { location.reload(); }, 10000);
     </script>
 </body>

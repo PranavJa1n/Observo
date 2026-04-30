@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -19,19 +20,29 @@ func IsRunning() (bool, error) {
 		return false, nil // No PID file = not running
 	}
 
-	// Check if process exists
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false, nil // Process not found
+	if runtime.GOOS == "windows" {
+		// On Windows, Signal(0) is not supported.
+		// Use tasklist to check if the process is alive by PID.
+		out, err := exec.Command("tasklist", "/FI", fmt.Sprintf("PID eq %d", pid), "/NH").Output()
+		if err != nil {
+			RemovePID()
+			return false, nil
+		}
+		if !strings.Contains(string(out), fmt.Sprintf("%d", pid)) {
+			RemovePID() // Clean up stale PID file
+			return false, nil
+		}
+		return true, nil
 	}
 
-	// Try to send signal 0 (null signal) to check if process is alive
-	// On Unix: this checks if process exists
-	// On Windows: FindProcess always succeeds, so we use a different approach
+	// Unix: use Signal(0) to check if process is alive
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false, nil
+	}
 	err = process.Signal(syscall.Signal(0))
 	if err != nil {
-		// Process doesn't exist or we don't have permission
-		RemovePID() // Clean up stale PID file
+		RemovePID()
 		return false, nil
 	}
 
