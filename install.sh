@@ -55,32 +55,13 @@ if [ "$GO_MAJOR" -lt 1 ] || { [ "$GO_MAJOR" -eq 1 ] && [ "$GO_MINOR" -lt 21 ]; }
 fi
 info "Go $GO_VERSION"
 
-# ── 3. Check Python ────────────────────────────────────────
-PYTHON_BIN=""
-if command -v python3 &>/dev/null; then
-  PYTHON_BIN="python3"
-elif command -v python &>/dev/null; then
-  PYTHON_BIN="python"
-else
-  error "Python is not installed. Please install Python 3.9+ from https://python.org"
-fi
-
-PY_VERSION=$($PYTHON_BIN --version 2>&1 | awk '{print $2}')
-PY_MAJOR=$(echo "$PY_VERSION" | cut -d. -f1)
-PY_MINOR=$(echo "$PY_VERSION" | cut -d. -f2)
-
-if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 9 ]; }; then
-  error "Python 3.9+ required, found $PY_VERSION."
-fi
-info "Python $PY_VERSION"
-
-# ── 4. Check git ───────────────────────────────────────────
+# ── 3. Check git ───────────────────────────────────────────
 if ! command -v git &>/dev/null; then
   error "git is not installed. Install it with: sudo apt install git  (or brew install git)"
 fi
 info "git $(git --version | awk '{print $3}')"
 
-# ── 5. Clone or update repo ────────────────────────────────
+# ── 4. Clone or update repo ────────────────────────────────
 section "Downloading Observo..."
 
 if [ -d "$INSTALL_DIR/.git" ]; then
@@ -93,18 +74,7 @@ else
   info "Cloned to $INSTALL_DIR"
 fi
 
-# ── 6. Install Python dependencies ────────────────────────
-section "Installing Python dependencies..."
-
-PIP_BIN="pip3"
-if ! command -v pip3 &>/dev/null; then
-  PIP_BIN="pip"
-fi
-
-$PIP_BIN install -q -r "$INSTALL_DIR/requirements.txt"
-info "Python packages installed"
-
-# ── 7. Build Go binary ─────────────────────────────────────
+# ── 5. Build Go binary ─────────────────────────────────────
 section "Building Observo binary..."
 
 cd "$INSTALL_DIR"
@@ -116,7 +86,7 @@ if [ "$PLATFORM" = "windows" ] && [ -f "$INSTALL_DIR/observo-bin.exe" ]; then
 fi
 info "Binary built"
 
-# ── 8. Install wrapper script ──────────────────────────────
+# ── 6. Install wrapper script ──────────────────────────────
 section "Installing to system PATH..."
 
 if [ "$PLATFORM" = "windows" ]; then
@@ -178,7 +148,7 @@ EOF
   warn "  export PATH=\"\$HOME/.local/bin:\$PATH\""
 fi
 
-# ── 9. Verify installation ─────────────────────────────────
+# ── 7. Verify installation ─────────────────────────────────
 section "Verifying..."
 
 if command -v observo &>/dev/null; then
@@ -193,7 +163,7 @@ echo ""
 echo -e "  ${GREEN}${BOLD}Installation complete!${RESET}"
 echo ""
 echo "  Next steps:"
-echo "    1.  observo init     — configure log path and API key"
+echo "    1.  observo init     — configure log path and AI model"
 echo "    2.  observo start    — start monitoring and open dashboard"
 echo "    3.  open http://localhost:6969 in your browser"
 echo ""
