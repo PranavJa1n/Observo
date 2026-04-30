@@ -5,3 +5,6 @@ dataset/
 dataset/
 __pycache__/
 coverage
+ai_results.json
+*.exe
+node_modules/
