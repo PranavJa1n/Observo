@@ -1,0 +1,49 @@
+name: Deploy Python Service to EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'service/**'
+      - 'requirements.txt'
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            echo "=== Pulling latest code ==="
+            cd ~/Observo
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "=== Installing Python dependencies ==="
+            pip3 install -q -r requirements.txt
+
+            echo "=== Restarting Python service ==="
+            pkill -f "python3 service/main.py" || true
+            sleep 2
+            nohup python3 service/main.py > ~/observo-service.log 2>&1 &
+
+            echo "=== Verifying service started ==="
+            sleep 3
+            if pgrep -f "python3 service/main.py" > /dev/null; then
+              echo "✅ Service is running!"
+            else
+              echo "❌ Service failed to start. Check ~/observo-service.log"
+              exit 1
+            fi
