@@ -21,7 +21,7 @@ import (
 
 // HARDCODED DEPLOYMENT URL
 // Change this to point to your deployed Python Service
-const PythonServiceURL = "http://localhost:5000"
+const PythonServiceURL = "http://13.206.88.93:5000"
 
 func main() {
 
